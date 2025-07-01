@@ -1,20 +1,28 @@
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+
+import { AuthProvider } from './src/hooks/useAuth';
+import { ThemeProvider, useTheme } from './src/hooks/useTheme';
+import AppNavigator from './src/navigation/AppNavigator';
+
+// Composant interne pour accéder au thème
+const AppContent = () => {
+  const { isDark, theme } = useTheme();
+  
+  return (
+    <>
+      <AppNavigator />
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={theme.BACKGROUND} />
+    </>
+  );
+};
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
