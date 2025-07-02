@@ -43,10 +43,55 @@ const MovieListScreen = ({ route, navigation }) => {
   const loadListData = async () => {
     setLoading(true);
     try {
-      console.log('📋 Chargement de la liste:', { listId, listType, userId });
+      console.log('📋 Chargement de la liste:', { listId, listType, userId, type: route.params?.type });
 
       let moviesData = [];
 
+      // Gérer les listes TMDB (films populaires, tendances, etc.)
+      if (route.params?.type) {
+        const apiType = route.params.type;
+        console.log('🎬 Chargement depuis TMDB, type:', apiType);
+        
+        let apiResponse;
+        switch (apiType) {
+          case 'trending':
+            apiResponse = await TMDBService.getTrendingAll();
+            break;
+          case 'popular':
+            apiResponse = await TMDBService.getPopularMovies();
+            break;
+          case 'top_rated':
+            apiResponse = await TMDBService.getTopRatedMovies();
+            break;
+          case 'popular_tv':
+            apiResponse = await TMDBService.getPopularTVShows();
+            break;
+          case 'top_rated_tv':
+            apiResponse = await TMDBService.getTopRatedTVShows();
+            break;
+          default:
+            console.warn('Type TMDB non reconnu:', apiType);
+        }
+        
+        if (apiResponse?.results) {
+          // Convertir les données TMDB au format attendu
+          const formattedMovies = apiResponse.results.map(item => ({
+            id: item.id,
+            title: item.title || item.name,
+            poster_path: item.poster_path,
+            overview: item.overview,
+            release_date: item.release_date || item.first_air_date,
+            vote_average: item.vote_average,
+            media_type: item.media_type || (item.title ? 'movie' : 'tv')
+          }));
+          
+          setMovies(formattedMovies);
+          console.log('✅ Liste TMDB chargée:', formattedMovies.length, 'contenus');
+          return;
+        }
+      }
+      
+      // Gérer les listes utilisateur personnelles
       if (listType === 'favorites') {
         // Charger les favoris
         moviesData = await userListsService.getUserFavorites(userId);
@@ -126,7 +171,7 @@ const MovieListScreen = ({ route, navigation }) => {
       <MovieCard
         movie={item}
         onPress={handleMoviePress}
-        showRemoveButton={true}
+        showRemoveButton={!route.params?.type} // Pas de bouton supprimer pour les listes TMDB
         onRemove={() => handleRemoveFromList(item)}
       />
       {listType === 'reviews' && item.review_text && (
