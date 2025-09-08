@@ -5,7 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,9 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useColors } from '../hooks/useTheme';
+import { Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import userListsService from '../services/userLists';
 import ThemeToggle from '../components/ThemeToggle';
+import LogoutButton from '../components/LogoutButton';
+import Logo from '../components/Logo';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, isAuthenticated, signOut } = useAuth();
@@ -29,6 +33,9 @@ const ProfileScreen = ({ navigation }) => {
   });
   const [userLists, setUserLists] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -222,6 +229,12 @@ const ProfileScreen = ({ navigation }) => {
 
   const renderUserView = () => (
     <ScrollView style={styles.userContainer}>
+      {/* Header avec bouton déconnexion */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profil</Text>
+        <LogoutButton />
+      </View>
+      
       {/* Profil utilisateur */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
@@ -311,32 +324,171 @@ const ProfileScreen = ({ navigation }) => {
         {/* Toggle de thème */}
         <ThemeToggle style={styles.themeToggle} />
         
-        {[
-          { title: 'Notifications', icon: 'notifications-outline' },
-          { title: 'Confidentialité', icon: 'shield-outline' },
-          { title: 'À propos', icon: 'information-circle-outline' },
-          { title: 'Aide', icon: 'help-circle-outline' }
-        ].map((setting, index) => (
-          <TouchableOpacity key={index} style={styles.settingItem}>
-            <View style={styles.settingIcon}>
-              <Ionicons name={setting.icon} size={20} color={Colors.TEXT_SECONDARY} />
-            </View>
-            <Text style={styles.settingTitle}>{setting.title}</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.TEXT_SECONDARY} />
-          </TouchableOpacity>
-        ))}
-        
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={20} color={Colors.ERROR} />
-          <Text style={styles.signOutText}>Déconnexion</Text>
+        <TouchableOpacity style={styles.settingItem} onPress={() => setShowPrivacyModal(true)}>
+          <View style={styles.settingIcon}>
+            <Ionicons name="shield-outline" size={20} color={Colors.TEXT_SECONDARY} />
+          </View>
+          <Text style={styles.settingTitle}>Confidentialité</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.TEXT_SECONDARY} />
         </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.settingItem} onPress={() => setShowAboutModal(true)}>
+          <View style={styles.settingIcon}>
+            <Ionicons name="information-circle-outline" size={20} color={Colors.TEXT_SECONDARY} />
+          </View>
+          <Text style={styles.settingTitle}>À propos</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.TEXT_SECONDARY} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.settingItem} onPress={() => setShowHelpModal(true)}>
+          <View style={styles.settingIcon}>
+            <Ionicons name="help-circle-outline" size={20} color={Colors.TEXT_SECONDARY} />
+          </View>
+          <Text style={styles.settingTitle}>Aide</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.TEXT_SECONDARY} />
+        </TouchableOpacity>
+        
+
       </View>
     </ScrollView>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       {isAuthenticated ? renderUserView() : renderGuestView()}
+      
+      {/* Modal Confidentialité */}
+      <Modal
+        visible={showPrivacyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPrivacyModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Confidentialité</Text>
+            <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
+              <Ionicons name="close" size={24} color={Colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            <Logo size={80} style={styles.modalLogo} />
+            
+            <Text style={styles.modalSectionTitle}>🔒 Protection de vos données</Text>
+            <Text style={styles.modalText}>
+              Grimovies respecte votre vie privée. Vos données personnelles sont stockées de manière sécurisée et ne sont jamais partagées avec des tiers.
+            </Text>
+            
+            <Text style={styles.modalSectionTitle}>📊 Données collectées</Text>
+            <Text style={styles.modalText}>
+              • Email (pour l'authentification){'\n'}
+              • Listes de films (favoris, à voir, vus){'\n'}
+              • Critiques et notes{'\n'}
+              • Préférences d'affichage
+            </Text>
+            
+            <Text style={styles.modalSectionTitle}>🛡️ Sécurité</Text>
+            <Text style={styles.modalText}>
+              Toutes vos données sont chiffrées et protégées par Supabase. Vous pouvez supprimer votre compte à tout moment.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      
+      {/* Modal À propos */}
+      <Modal
+        visible={showAboutModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAboutModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>À propos</Text>
+            <TouchableOpacity onPress={() => setShowAboutModal(false)}>
+              <Ionicons name="close" size={24} color={Colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            <Logo size={100} style={styles.modalLogo} />
+            
+            <Text style={styles.modalAppName}>Grimovies</Text>
+            <Text style={styles.modalVersion}>Version 1.0.0</Text>
+            
+            <Text style={styles.modalSectionTitle}>🎬 Votre compagnon cinéma</Text>
+            <Text style={styles.modalText}>
+              Grimovies est votre application de référence pour découvrir, organiser et critiquer vos films préférés. Explorez un catalogue infini de films et séries grâce à l'API TMDB.
+            </Text>
+            
+            <Text style={styles.modalSectionTitle}>✨ Fonctionnalités</Text>
+            <Text style={styles.modalText}>
+              • Découverte de films et séries{'\n'}
+              • Gestion de listes personnalisées{'\n'}
+              • Système de favoris{'\n'}
+              • Critiques et notes{'\n'}
+              • Thème sombre/clair{'\n'}
+              • Recherche avancée
+            </Text>
+            
+            <Text style={styles.modalSectionTitle}>👨‍💻 Développé avec ❤️</Text>
+            <Text style={styles.modalText}>
+              Créé avec React Native, Expo et Supabase pour vous offrir la meilleure expérience cinéma possible.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+      
+      {/* Modal Aide */}
+      <Modal
+        visible={showHelpModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowHelpModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Aide</Text>
+            <TouchableOpacity onPress={() => setShowHelpModal(false)}>
+              <Ionicons name="close" size={24} color={Colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            <Logo size={80} style={styles.modalLogo} />
+            
+            <Text style={styles.modalSectionTitle}>🎯 Comment utiliser Grimovies</Text>
+            
+            <Text style={styles.modalSubTitle}>🔍 Recherche</Text>
+            <Text style={styles.modalText}>
+              Utilisez la barre de recherche pour trouver vos films préférés. Filtrez par genre, année ou note.
+            </Text>
+            
+            <Text style={styles.modalSubTitle}>📋 Listes</Text>
+            <Text style={styles.modalText}>
+              • ❤️ Favoris : Vos films coup de cœur{'\n'}
+              • 📺 À voir : Films que vous voulez regarder{'\n'}
+              • ✅ Vus : Films que vous avez regardés
+            </Text>
+            
+            <Text style={styles.modalSubTitle}>⭐ Notes et critiques</Text>
+            <Text style={styles.modalText}>
+              Notez vos films de 1 à 10 étoiles et rédigez vos critiques personnelles.
+            </Text>
+            
+            <Text style={styles.modalSubTitle}>🎨 Thème</Text>
+            <Text style={styles.modalText}>
+              Basculez entre le mode sombre et clair selon vos préférences.
+            </Text>
+            
+            <Text style={styles.modalSectionTitle}>❓ Besoin d'aide ?</Text>
+            <Text style={styles.modalText}>
+              Si vous rencontrez un problème, redémarrez l'application ou reconnectez-vous.
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -345,7 +497,23 @@ const createStyles = (Colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.BACKGROUND,
+    paddingTop: Sizes.STATUS_BAR_PADDING,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.TEXT_PRIMARY,
+  },
+
   
   // Styles pour l'affichage invité
   guestContainer: {
@@ -550,6 +718,68 @@ const createStyles = (Colors) => StyleSheet.create({
     color: Colors.ERROR,
     marginLeft: 16,
     fontWeight: '500',
+  },
+  
+  // Styles des modales
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.BACKGROUND,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.BORDER,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.TEXT_PRIMARY,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  modalLogo: {
+    marginBottom: 20,
+    alignSelf: 'center',
+  },
+  modalAppName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: Colors.TEXT_PRIMARY,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalVersion: {
+    fontSize: 16,
+    color: Colors.TEXT_SECONDARY,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.TEXT_PRIMARY,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  modalSubTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.PRIMARY,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  modalText: {
+    fontSize: 14,
+    color: Colors.TEXT_SECONDARY,
+    lineHeight: 20,
+    marginBottom: 8,
   },
 });
 

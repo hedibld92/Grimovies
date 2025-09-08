@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useColors } from '../hooks/useTheme';
+import { Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
 import userListsService from '../services/userLists';
@@ -209,7 +210,7 @@ const MovieListScreen = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.PRIMARY} />
         </View>
@@ -218,7 +219,7 @@ const MovieListScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -249,6 +250,7 @@ const createStyles = (Colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.BACKGROUND,
+    paddingTop: Sizes.STATUS_BAR_PADDING,
   },
   loadingContainer: {
     flex: 1,
@@ -259,7 +261,7 @@ const createStyles = (Colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.BORDER,
   },

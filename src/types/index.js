@@ -111,5 +111,6 @@ export const Sizes = {
   CARD_HEIGHT: 200,
   POSTER_WIDTH: 120,
   POSTER_HEIGHT: 180,
-  BACKDROP_HEIGHT: 200
+  BACKDROP_HEIGHT: 200,
+  STATUS_BAR_PADDING: 44  // Padding pour compenser la status bar iOS
 }; 

@@ -13,13 +13,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useColors } from '../hooks/useTheme';
-import { MovieGenres, SortBy } from '../types';
+import { MovieGenres, SortBy, Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
 import MovieCard from '../components/MovieCard';
+import LogoutButton from '../components/LogoutButton';
 
 const SearchScreen = ({ navigation }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
   const Colors = useColors();
   const styles = createStyles(Colors);
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,7 +213,7 @@ const SearchScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       {/* Barre de recherche */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -252,6 +253,8 @@ const SearchScreen = ({ navigation }) => {
             color={showFilters ? Colors.PRIMARY : Colors.TEXT_SECONDARY} 
           />
         </TouchableOpacity>
+        
+        {isAuthenticated && <LogoutButton size={20} />}
       </View>
 
       {/* Onglets de type de contenu */}
@@ -341,6 +344,7 @@ const createStyles = (Colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.BACKGROUND,
+    paddingTop: Sizes.STATUS_BAR_PADDING,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -368,7 +372,9 @@ const createStyles = (Colors) => StyleSheet.create({
     padding: 12,
     backgroundColor: Colors.CARD_BG,
     borderRadius: 12,
+    marginRight: 8,
   },
+
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,

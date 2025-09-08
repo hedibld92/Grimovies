@@ -275,7 +275,8 @@ class UserListsService {
         .upsert([{
           user_id: userId,
           movie_id: movieData.id,
-          movie_title: movieData.title,
+          title: movieData.title,
+          poster_path: movieData.poster_path,
           rating,
           review_text: reviewText,
           updated_at: new Date().toISOString()
@@ -287,6 +288,23 @@ class UserListsService {
       return data;
     } catch (error) {
       console.error('❌ Erreur addOrUpdateReview:', error);
+      throw error;
+    }
+  }
+
+  // Supprimer un film des films vus
+  async removeFromWatched(userId, movieId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_watched')
+        .delete()
+        .eq('user_id', userId)
+        .eq('movie_id', movieId);
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('❌ Erreur removeFromWatched:', error);
       throw error;
     }
   }

@@ -1,37 +1,71 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration Supabase - NOUVEAU PROJET
-const supabaseUrl = 'https://nyncpxgfdhqxrlzvcgyy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55bmNweGdmZGhxeHJsenZjZ3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyOTI2MjUsImV4cCI6MjA2Njg2ODYyNX0.0AKVwb2uH-Cbo5SczVDaVIHhgKm8UeJbSV2U4sMFCQU';
+// Configuration Supabase - NOUVEAU PROJET V2
+const supabaseUrl = 'https://shwaldiuoykaegaqcdfc.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNod2FsZGl1b3lrYWVnYXFjZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NTY4NTMsImV4cCI6MjA3MjEzMjg1M30.b7g5q09XRCBPl1fG94sTYjoE3Xr2ePHP8OHkb-uDh0Y';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Service d'authentification
+// Service d'authentification avec fallback local
 export const authService = {
   // Inscription simple avec email de confirmation
   async signUp(email, password) {
     console.log('🔐 Supabase signUp appelé avec:', { email });
     
+    try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
+      
+      // Vérifier si c'est une erreur réseau
+      if (error && (error.message?.includes('Network request failed') || error.name?.includes('AuthRetryableFetchError'))) {
+        console.warn('⚠️ Erreur réseau Supabase détectée, utilisation du fallback local:', error.message);
+        
+        // Fallback vers l'authentification locale
+        const { localAuthService } = await import('./localAuth');
+        return await localAuthService.signUp(email, password);
+      }
     
     console.log('📊 Réponse Supabase signUp:', { data, error });
     return { data, error };
+    } catch (networkError) {
+      console.warn('⚠️ Exception réseau Supabase, utilisation du fallback local:', networkError.message);
+      
+      // Fallback vers l'authentification locale
+      const { localAuthService } = await import('./localAuth');
+      return await localAuthService.signUp(email, password);
+    }
   },
 
   // Connexion
   async signIn(email, password) {
     console.log('🔑 Supabase signIn appelé avec:', { email });
     
+    try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+      
+      // Vérifier si c'est une erreur réseau
+      if (error && (error.message?.includes('Network request failed') || error.name?.includes('AuthRetryableFetchError'))) {
+        console.warn('⚠️ Erreur réseau Supabase détectée, utilisation du fallback local:', error.message);
+        
+        // Fallback vers l'authentification locale
+        const { localAuthService } = await import('./localAuth');
+        return await localAuthService.signIn(email, password);
+      }
     
     console.log('📊 Réponse Supabase signIn:', { data, error });
     return { data, error };
+    } catch (networkError) {
+      console.warn('⚠️ Exception réseau Supabase, utilisation du fallback local:', networkError.message);
+      
+      // Fallback vers l'authentification locale
+      const { localAuthService } = await import('./localAuth');
+      return await localAuthService.signIn(email, password);
+    }
   },
 
   // Déconnexion
@@ -42,8 +76,16 @@ export const authService = {
 
   // Obtenir l'utilisateur actuel
   async getCurrentUser() {
+    try {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
+    } catch (networkError) {
+      console.warn('⚠️ Erreur réseau Supabase, utilisation du fallback local:', networkError.message);
+      
+      // Fallback vers l'authentification locale
+      const { localAuthService } = await import('./localAuth');
+      return await localAuthService.getCurrentUser();
+    }
   },
 
   // Écouter les changements d'état d'auth

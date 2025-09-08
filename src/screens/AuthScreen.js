@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useColors } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
+import Logo from '../components/Logo';
 
 const AuthScreen = ({ navigation }) => {
   const { signIn, signUp, loading } = useAuth();
@@ -95,7 +96,7 @@ const AuthScreen = ({ navigation }) => {
 
           {/* Logo et titre */}
           <View style={styles.logoSection}>
-            <Text style={styles.logo}>🎬</Text>
+            <Logo size={120} />
             <Text style={styles.title}>Grimovies</Text>
             <Text style={styles.subtitle}>
               {isSignUp 

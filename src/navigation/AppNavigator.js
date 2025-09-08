@@ -112,7 +112,7 @@ const AppNavigator = () => {
         <Stack.Screen
           name="MainTabs"
           component={TabNavigator}
-          options={{ headerShown: false }}
+          options={{ headerShown: false, title: '' }}
         />
         
         {/* Écrans modaux et de détail */}
@@ -140,6 +140,7 @@ const AppNavigator = () => {
           options={({ route }) => ({
             title: route.params?.title || 'Films',
             headerBackTitleVisible: false,
+            headerShown: false,
           })}
         />
       </Stack.Navigator>

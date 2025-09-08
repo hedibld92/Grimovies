@@ -18,9 +18,11 @@ import { Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
 import MovieCard from '../components/MovieCard';
+import LogoutButton from '../components/LogoutButton';
+import Logo from '../components/Logo';
 
 const HomeScreen = ({ navigation }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth();
   const Colors = useColors();
   const styles = createStyles(Colors);
   const [loading, setLoading] = useState(true);
@@ -184,7 +186,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -197,13 +199,17 @@ const HomeScreen = ({ navigation }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Grimovies</Text>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => navigation.navigate('Search')}
-          >
-            <Ionicons name="search" size={24} color={Colors.TEXT_PRIMARY} />
-          </TouchableOpacity>
+          <Logo size={60} />
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('Search')}
+            >
+              <Ionicons name="search" size={24} color={Colors.TEXT_PRIMARY} />
+            </TouchableOpacity>
+            
+            {isAuthenticated && <LogoutButton />}
+          </View>
         </View>
 
         {/* Suggestion aléatoire */}
@@ -259,19 +265,7 @@ const HomeScreen = ({ navigation }) => {
           })
         )}
 
-        {/* Debug info */}
-        {__DEV__ && (
-          <View style={{ padding: 20, backgroundColor: Colors.CARD_BG, margin: 20, borderRadius: 8 }}>
-            <Text style={{ color: Colors.TEXT_PRIMARY, fontSize: 14, fontWeight: 'bold' }}>Debug Info:</Text>
-            <Text style={{ color: Colors.TEXT_SECONDARY, fontSize: 12 }}>
-              Tendances: {trendingContent.length} contenus{'\n'}
-              Films populaires: {popularMovies.length} films{'\n'}
-              Films top: {topRatedMovies.length} films{'\n'}
-              Séries populaires: {popularTVShows.length} séries{'\n'}
-              Séries top: {topRatedTVShows.length} séries
-            </Text>
-          </View>
-        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,6 +275,7 @@ const createStyles = (Colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.BACKGROUND,
+    paddingTop: Sizes.STATUS_BAR_PADDING,
   },
   scrollView: {
     flex: 1,
@@ -297,8 +292,13 @@ const createStyles = (Colors) => StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.PRIMARY,
   },
-  searchButton: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerButton: {
     padding: 8,
+    marginLeft: 8,
   },
   randomPickSection: {
     marginHorizontal: 20,

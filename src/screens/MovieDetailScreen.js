@@ -19,6 +19,7 @@ import { Sizes, formatters } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
 import userListsService from '../services/userLists';
+import ReviewModal from '../components/ReviewModal';
 
 const MovieDetailScreen = ({ route, navigation }) => {
   const { movie } = route.params;
@@ -29,7 +30,10 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [isWatched, setIsWatched] = useState(false);
   const [userLists, setUserLists] = useState([]);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [existingReview, setExistingReview] = useState(null);
 
   useEffect(() => {
     loadMovieDetails();
@@ -86,6 +90,17 @@ const MovieDetailScreen = ({ route, navigation }) => {
         const isInWatchlist = await userListsService.isMovieInList(watchlist.id, movieDetails.id);
         setInWatchlist(isInWatchlist);
       }
+      
+      // Vérifier si le film est marqué comme vu
+      const watchedMovies = await userListsService.getUserWatched(user.id);
+      const watched = watchedMovies.some(m => m.movie_id === movieDetails.id);
+      setIsWatched(watched);
+      
+      // Vérifier s'il y a une critique existante
+      const reviews = await userListsService.getUserReviews(user.id);
+      const review = reviews.find(r => r.movie_id === movieDetails.id);
+      setExistingReview(review || null);
+      
     } catch (error) {
       console.error('❌ Erreur lors de la vérification du statut:', error);
     }
@@ -109,13 +124,29 @@ const MovieDetailScreen = ({ route, navigation }) => {
       console.log('👤 User ID:', user?.id);
       console.log('📋 Listes disponibles:', userLists.length);
       
-      const watchlist = userLists.find(list => list.name === 'À voir');
+      let watchlist = userLists.find(list => list.name === 'À voir');
       console.log('🎯 Watchlist trouvée:', watchlist);
       
       if (!watchlist) {
-        console.log('❌ Aucune watchlist trouvée, création...');
-        Alert.alert('Erreur', 'Liste de visionnage introuvable. Allez dans votre profil pour créer vos listes par défaut.');
-        return;
+        console.log('❌ Aucune watchlist trouvée, création automatique...');
+        try {
+          // Créer la liste "À voir" automatiquement
+          await userListsService.createList(user.id, 'À voir', 'Films que je veux regarder', 'watchlist');
+          
+          // Recharger les listes
+          const updatedLists = await userListsService.getUserLists(user.id);
+          setUserLists(updatedLists);
+          watchlist = updatedLists.find(list => list.name === 'À voir');
+          
+          if (!watchlist) {
+            Alert.alert('Erreur', 'Impossible de créer la liste de visionnage.');
+            return;
+          }
+        } catch (createError) {
+          console.error('❌ Erreur création watchlist:', createError);
+          Alert.alert('Erreur', 'Impossible de créer la liste de visionnage.');
+          return;
+        }
       }
 
       const movieData = {
@@ -211,6 +242,57 @@ const MovieDetailScreen = ({ route, navigation }) => {
       Linking.openURL(youtubeUrl);
     } else {
       Alert.alert('Désolé', 'Aucune bande-annonce disponible pour ce film.');
+    }
+  };
+
+  const handleMarkAsWatched = async () => {
+    if (!isAuthenticated) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour marquer des films comme vus.');
+      return;
+    }
+
+    try {
+      if (isWatched) {
+        // Retirer des films vus
+        await userListsService.removeFromWatched(user.id, movieDetails.id);
+        setIsWatched(false);
+        Alert.alert('Succès', 'Film retiré de vos films vus');
+      } else {
+        // Marquer comme vu
+        await userListsService.markAsWatched(user.id, movieDetails);
+        setIsWatched(true);
+        Alert.alert('Succès', 'Film marqué comme vu !');
+      }
+    } catch (error) {
+      console.error('❌ Erreur markAsWatched:', error);
+      Alert.alert('Erreur', 'Impossible de modifier le statut du film.');
+    }
+  };
+
+  const handleOpenReview = () => {
+    if (!isAuthenticated) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour écrire des critiques.');
+      return;
+    }
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSubmit = async ({ rating, reviewText, movieData }) => {
+    try {
+      await userListsService.addOrUpdateReview(user.id, movieData, rating, reviewText);
+      
+      // Recharger le statut pour mettre à jour la critique
+      await checkUserStatus();
+      
+      // Marquer automatiquement comme vu si pas déjà fait
+      if (!isWatched) {
+        await userListsService.markAsWatched(user.id, movieData);
+        setIsWatched(true);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur soumission critique:', error);
+      throw error;
     }
   };
 
@@ -320,41 +402,100 @@ const MovieDetailScreen = ({ route, navigation }) => {
 
   const renderActions = () => (
     <View style={styles.actionsContainer}>
+      {/* Bouton principal - Bande-annonce */}
       <TouchableOpacity
-        style={[styles.actionButton, styles.primaryButton]}
+        style={styles.primaryButton}
         onPress={handleWatchTrailer}
       >
-        <Ionicons name="play" size={20} color="#FFFFFF" />
+        <Ionicons name="play" size={24} color="#FFFFFF" />
         <Text style={styles.primaryButtonText}>Bande-annonce</Text>
       </TouchableOpacity>
       
-      <TouchableOpacity
-        style={[styles.secondaryButton, inWatchlist && styles.activeSecondaryButton]}
-        onPress={handleAddToWatchlist}
-      >
-        <Ionicons
-          name={inWatchlist ? "bookmark" : "bookmark-outline"}
-          size={20}
-          color={inWatchlist ? Colors.PRIMARY : Colors.TEXT_SECONDARY}
-        />
-        <Text style={[styles.secondaryButtonText, inWatchlist && styles.activeSecondaryButtonText]}>
-          {inWatchlist ? "Dans ma liste" : "Ma liste"}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.secondaryButton, isFavorite && styles.favoriteSecondaryButton]}
-        onPress={handleToggleFavorite}
-      >
-        <Ionicons
-          name={isFavorite ? "heart" : "heart-outline"}
-          size={20}
-          color={isFavorite ? "#E53E3E" : Colors.TEXT_SECONDARY}
-        />
-        <Text style={[styles.secondaryButtonText, isFavorite && styles.favoriteSecondaryButtonText]}>
-          {isFavorite ? "Favori" : "Aimer"}
-        </Text>
-      </TouchableOpacity>
+      {/* Ligne des actions secondaires */}
+      <View style={styles.secondaryActionsRow}>
+        <View style={styles.actionItem}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              isFavorite && { backgroundColor: '#E53E3E15' }
+            ]}
+            onPress={handleToggleFavorite}
+          >
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#E53E3E" : Colors.TEXT_SECONDARY}
+            />
+          </TouchableOpacity>
+          <Text style={styles.actionLabel}>
+            {isFavorite ? "Favori" : "Aimer"}
+          </Text>
+        </View>
+        
+        <View style={styles.actionItem}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              inWatchlist && { backgroundColor: `${Colors.PRIMARY}15` }
+            ]}
+            onPress={handleAddToWatchlist}
+          >
+            <Ionicons
+              name={inWatchlist ? "bookmark" : "bookmark-outline"}
+              size={24}
+              color={inWatchlist ? Colors.PRIMARY : Colors.TEXT_SECONDARY}
+            />
+          </TouchableOpacity>
+          <Text style={styles.actionLabel}>
+            {inWatchlist ? "Ma liste" : "À voir"}
+          </Text>
+        </View>
+        
+        <View style={styles.actionItem}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              isWatched && { backgroundColor: `${Colors.SUCCESS}15` }
+            ]}
+            onPress={handleMarkAsWatched}
+          >
+            <Ionicons
+              name={isWatched ? "checkmark-circle" : "checkmark-circle-outline"}
+              size={24}
+              color={isWatched ? Colors.SUCCESS : Colors.TEXT_SECONDARY}
+            />
+          </TouchableOpacity>
+          <Text style={styles.actionLabel}>
+            {isWatched ? "Vu" : "Pas vu"}
+          </Text>
+        </View>
+        
+        <View style={styles.actionItem}>
+          <TouchableOpacity
+            style={[
+              styles.reviewButton, 
+              existingReview && { 
+                backgroundColor: `${Colors.ACCENT}20`,
+                borderWidth: 1,
+                borderColor: Colors.ACCENT
+              }
+            ]}
+            onPress={handleOpenReview}
+          >
+            <Ionicons
+              name="star"
+              size={18}
+              color={existingReview ? Colors.ACCENT : Colors.TEXT_PRIMARY}
+            />
+            <Text style={[styles.reviewButtonText, existingReview && { color: Colors.ACCENT }]}>
+              {existingReview ? `${existingReview.rating}/10` : "★"}
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.actionLabel}>
+            {existingReview ? "Ma note" : "Noter"}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 
@@ -463,7 +604,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.PRIMARY} />
           <Text style={styles.loadingText}>Chargement...</Text>
@@ -474,7 +615,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
 
   if (!movieDetails) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color={Colors.TEXT_SECONDARY} />
           <Text style={styles.errorText}>Impossible de charger les détails du film</Text>
@@ -490,7 +631,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {renderHeader()}
         {renderActions()}
@@ -499,6 +640,14 @@ const MovieDetailScreen = ({ route, navigation }) => {
         {renderCast()}
         {renderSimilarMovies()}
       </ScrollView>
+      
+      <ReviewModal
+        visible={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onSubmit={handleReviewSubmit}
+        movie={movieDetails}
+        existingReview={existingReview}
+      />
     </SafeAreaView>
   );
 };
@@ -611,62 +760,77 @@ const createStyles = (Colors) => StyleSheet.create({
   
   // Actions
   actionsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 20,
-    alignItems: 'center',
+    paddingVertical: 24,
   },
-  actionButton: {
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.CARD_BG,
-    marginRight: 12,
-  },
-  primaryButton: {
-    flex: 1,
     backgroundColor: Colors.PRIMARY,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: Colors.PRIMARY,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   primaryButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     marginLeft: 8,
   },
-  secondaryButton: {
+  secondaryActionsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+  },
+  actionItem: {
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.SURFACE,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: Colors.CARD_BG,
-    borderWidth: 1,
-    borderColor: Colors.CARD_BG,
-    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    marginBottom: 8,
   },
-  activeSecondaryButton: {
-    borderColor: Colors.PRIMARY,
-    backgroundColor: `${Colors.PRIMARY}20`,
+
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.SURFACE,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    marginBottom: 8,
   },
-  favoriteSecondaryButton: {
-    borderColor: "#E53E3E",
-    backgroundColor: "#E53E3E20",
-  },
-  secondaryButtonText: {
-    color: Colors.TEXT_SECONDARY,
+  reviewButtonText: {
+    color: Colors.TEXT_PRIMARY,
     fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  actionLabel: {
+    fontSize: 11,
+    color: Colors.TEXT_SECONDARY,
     fontWeight: '500',
-    marginLeft: 6,
-  },
-  activeSecondaryButtonText: {
-    color: Colors.PRIMARY,
-  },
-  favoriteSecondaryButtonText: {
-    color: "#E53E3E",
+    textAlign: 'center',
   },
   
   // Sections
