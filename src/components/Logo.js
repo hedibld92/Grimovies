@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../hooks/useColors';
 
 // Tes images originales
 const LOGO_IMAGES = {

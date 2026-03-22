@@ -8,7 +8,7 @@ import {
   Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { Sizes, formatters } from '../types';
 import TMDBService from '../services/tmdb';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 
 const StarRating = ({ rating = 0, onRatingChange, readonly = false, size = 24 }) => {
   const Colors = useColors();

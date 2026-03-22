@@ -1,5 +1,17 @@
-// Service pour gérer les listes utilisateur avec Supabase
+// COUCHE MÉTIER — Gestion des listes personnalisées utilisateur
 import { supabase } from './supabase';
+
+/** Champs communs film / série TMDB (title vs name, dates, etc.) */
+function tmdbListRow(movieData) {
+  const title = (movieData?.title ?? movieData?.name ?? '').trim() || 'Sans titre';
+  return {
+    title,
+    poster_path: movieData?.poster_path ?? null,
+    overview: movieData?.overview ?? null,
+    release_date: movieData?.release_date ?? movieData?.first_air_date ?? null,
+    vote_average: movieData?.vote_average ?? null,
+  };
+}
 
 class UserListsService {
   // Récupérer toutes les listes d'un utilisateur
@@ -58,7 +70,8 @@ class UserListsService {
         .insert([{
           user_id: userId,
           name,
-          description
+          description,
+          list_type: listType,
         }])
         .select()
         .single();
@@ -79,11 +92,7 @@ class UserListsService {
         .insert([{
           list_id: listId,
           movie_id: movieData.id,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
+          ...tmdbListRow(movieData),
         }])
         .select()
         .single();
@@ -156,11 +165,7 @@ class UserListsService {
         .insert([{
           user_id: userId,
           movie_id: movieData.id,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
+          ...tmdbListRow(movieData),
         }])
         .select()
         .single();
@@ -169,6 +174,58 @@ class UserListsService {
       return data;
     } catch (error) {
       console.error('❌ Erreur addToFavorites:', error);
+      throw error;
+    }
+  }
+
+  async getUserWatchlist(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('user_watchlist')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Erreur getUserWatchlist:', error);
+      throw error;
+    }
+  }
+
+  async addToWatchlist(userId, movie) {
+    try {
+      const { data, error } = await supabase
+        .from('user_watchlist')
+        .insert([{
+          user_id: userId,
+          movie_id: movie.id,
+          ...tmdbListRow(movie),
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erreur addToWatchlist:', error);
+      throw error;
+    }
+  }
+
+  async removeFromWatchlist(userId, movieId) {
+    try {
+      const { error } = await supabase
+        .from('user_watchlist')
+        .delete()
+        .eq('user_id', userId)
+        .eq('movie_id', movieId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Erreur removeFromWatchlist:', error);
       throw error;
     }
   }
@@ -233,11 +290,8 @@ class UserListsService {
         .insert([{
           user_id: userId,
           movie_id: movieData.id,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
+          ...tmdbListRow(movieData),
+          rating: rating ?? null,
         }])
         .select()
         .single();
@@ -270,13 +324,17 @@ class UserListsService {
   // Ajouter/Modifier une critique
   async addOrUpdateReview(userId, movieData, rating, reviewText) {
     try {
+      const row = tmdbListRow(movieData);
       const { data, error } = await supabase
         .from('user_reviews')
         .upsert([{
           user_id: userId,
           movie_id: movieData.id,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
+          title: row.title,
+          poster_path: row.poster_path,
+          overview: row.overview,
+          release_date: row.release_date,
+          vote_average: row.vote_average,
           rating,
           review_text: reviewText,
           updated_at: new Date().toISOString()

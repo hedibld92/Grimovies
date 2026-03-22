@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../hooks/useColors';
 
 // Ton logo original exact - Version noire
 const LOGO_BLACK = `

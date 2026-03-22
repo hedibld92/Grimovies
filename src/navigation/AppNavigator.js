@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 

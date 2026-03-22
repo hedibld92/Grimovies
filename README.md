@@ -1,263 +1,211 @@
-# 🎬 Grimovies
+# Grimovies
 
-Une application mobile de découverte et de gestion de films/séries, développée avec React Native et Expo.
+Application mobile de découverte et de gestion de films, construite avec **React Native** et **Expo**.
 
-## 📱 Fonctionnalités
+## Architecture en 3 couches
 
-### 🏠 Page d'accueil
-- Sélection du jour avec suggestion aléatoire
-- Films tendance, populaires et les mieux notés
-- Interface moderne inspirée de Netflix/Letterboxd
+Les dossiers sous `src/` reflètent une séparation **présentation / métier / données** :
 
-### 🔍 Recherche et filtres
-- Recherche par titre de film
-- Filtres par genre, année, note
-- Découverte de films par catégories
+```
+                    +---------------------------+
+                    |      Écrans + UI          |
+                    |  screens/, components/,   |
+                    |  hooks/ (useAuth, thème)  |
+                    +-------------+-------------+
+                                  |
+                    +-------------v-------------+
+                    |      Couche métier        |
+                    |  services/auth.js         |
+                    |  services/userLists.js    |
+                    +-------------+-------------+
+                                  |
+                    +-------------v-------------+
+                    |      Couche données       |
+                    |  services/supabase.js   |
+                    |  services/tmdb.js        |
+                    |  utils/env.js             |
+                    +---------------------------+
+```
 
-### 🎭 Détails des films
-- Synopsis complet avec informations détaillées
-- Distribution et équipe technique
-- Bandes-annonces et vidéos
-- Films similaires et recommandations
+Structure des dossiers :
 
-### 👤 Gestion utilisateur
-- Authentification sécurisée via Supabase
-- Listes personnalisées (À voir, Favoris, Vus)
-- Historique de visionnage
-- Statistiques personnelles
+```
+src/
+├── components/     # Présentation — UI réutilisable (MovieCard, SearchBar, ListManager, AuthForm, …)
+├── hooks/          # Présentation — useAuth.js, useColors.js (+ useTheme.js réexporte useColors)
+├── screens/        # Présentation — écrans
+├── services/       # Métier (auth, listes) et données (clients Supabase / TMDB)
+├── navigation/
+├── types/
+└── utils/          # env.js (lecture des variables d’environnement côté app)
+```
 
-### 📱 Interface responsive
-- Design adaptatif pour tous les écrans
-- Navigation intuitive par onglets
-- Thème sombre moderne
-
-## 🛠️ Stack technique
-
-### Frontend
-- **React Native** avec Expo
-- **React Navigation** pour la navigation
-- **Expo Vector Icons** pour les icônes
-- **Expo Linear Gradient** pour les dégradés
-
-### Backend
-- **Supabase** pour l'authentification et la base de données
-- **TMDB API** pour les métadonnées des films
-- Architecture serverless
-
-### Design
-- Interface minimaliste et moderne
-- Palette de couleurs inspirée de Netflix
-- Composants réutilisables et modulaires
-
-## 🚀 Installation
+## Installation et configuration
 
 ### Prérequis
-- Node.js (version 16 ou supérieure)
-- npm ou yarn
-- Expo CLI
-- Compte Supabase
-- Clé API TMDB
 
-### Étapes d'installation
+- Node.js 18+
+- Compte [Supabase](https://supabase.com/)
+- Clé API [TMDB](https://www.themoviedb.org/settings/api)
 
-1. **Cloner le projet**
-```bash
-git clone https://github.com/votre-username/grimovies.git
-cd grimovies
-```
+### Étapes
 
-2. **Installer les dépendances**
+1. Cloner le dépôt et installer les dépendances :
+
 ```bash
 npm install
-# ou
-yarn install
 ```
 
-3. **Configuration des variables d'environnement**
+2. Copier le fichier d’exemple et renseigner les clés (sans les commiter) :
+
 ```bash
 cp env.example .env
 ```
 
-Remplissez le fichier `.env` avec vos clés :
+Contenu minimal de `.env` :
+
 ```
-SUPABASE_URL=https://votre-projet.supabase.co
-SUPABASE_ANON_KEY=votre_cle_anonyme
-TMDB_API_KEY=votre_cle_tmdb
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+TMDB_API_KEY=
 ```
 
-4. **Configuration Supabase**
+3. Au démarrage, `app.config.js` charge le `.env` avec **dotenv** et expose ces valeurs dans `expo.extra`. L’app les lit via `src/utils/env.js` (compatible avec `process.env` en contexte Node / outils).
 
-Créez les tables suivantes dans votre projet Supabase :
+4. Créer les tables dans Supabase (voir section SQL ci-dessous), activer le RLS et les politiques.
+
+5. Lancer le projet :
+
+```bash
+npm start
+```
+
+Script optionnel interactif : `npm run setup` (génère un `.env`).
+
+## Schéma SQL Supabase
+
+À exécuter dans l’éditeur SQL Supabase (aligné sur `src/services/supabase.js`) :
 
 ```sql
--- Table des films (optionnelle, pour les données locales)
-CREATE TABLE movies (
-  id BIGINT PRIMARY KEY,
-  title TEXT NOT NULL,
-  overview TEXT,
-  poster_path TEXT,
-  backdrop_path TEXT,
-  release_date DATE,
-  vote_average DECIMAL,
-  is_popular BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Table des listes utilisateur
-CREATE TABLE user_lists (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Table de liaison films-listes
-CREATE TABLE list_movies (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  list_id UUID REFERENCES user_lists(id) ON DELETE CASCADE,
-  movie_id BIGINT NOT NULL,
-  added_at TIMESTAMP DEFAULT NOW()
-);
-
 -- Table des favoris
 CREATE TABLE user_favorites (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  movie_id BIGINT NOT NULL,
+  movie_id INTEGER NOT NULL,
+  title VARCHAR NOT NULL,
+  poster_path VARCHAR,
+  overview TEXT,
+  release_date VARCHAR,
+  vote_average REAL,
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, movie_id)
 );
+
+-- Table watchlist
+CREATE TABLE user_watchlist (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  movie_id INTEGER NOT NULL,
+  title VARCHAR NOT NULL,
+  poster_path VARCHAR,
+  overview TEXT,
+  release_date VARCHAR,
+  vote_average REAL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, movie_id)
+);
+
+-- Table films vus
+CREATE TABLE user_watched (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  movie_id INTEGER NOT NULL,
+  title VARCHAR NOT NULL,
+  poster_path VARCHAR,
+  overview TEXT,
+  release_date VARCHAR,
+  vote_average REAL,
+  rating INTEGER,
+  watched_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, movie_id)
+);
+
+-- Table critiques
+CREATE TABLE user_reviews (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  movie_id INTEGER NOT NULL,
+  title VARCHAR NOT NULL,
+  rating INTEGER NOT NULL,
+  review_text TEXT,
+  poster_path VARCHAR,
+  overview TEXT,
+  release_date VARCHAR,
+  vote_average REAL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Table listes personnalisées
+CREATE TABLE user_lists (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR NOT NULL,
+  description TEXT,
+  list_type VARCHAR,
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Table films dans les listes
+CREATE TABLE list_movies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  list_id UUID REFERENCES user_lists(id) ON DELETE CASCADE,
+  movie_id INTEGER NOT NULL,
+  title VARCHAR NOT NULL,
+  poster_path VARCHAR,
+  overview TEXT,
+  release_date VARCHAR,
+  vote_average REAL,
+  added_at TIMESTAMP DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE user_favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_watchlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_watched ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE list_movies ENABLE ROW LEVEL SECURITY;
+
+-- Politiques (exemples — à adapter si besoin)
+CREATE POLICY "Users can view their own favorites" ON user_favorites FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own watchlist" ON user_watchlist FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own watched" ON user_watched FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own reviews" ON user_reviews FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own lists" ON user_lists FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view movies in their lists" ON list_movies FOR ALL USING (auth.uid() = (SELECT user_id FROM user_lists WHERE id = list_id));
 ```
 
-5. **Obtenir une clé API TMDB**
-- Créez un compte sur [TMDB](https://www.themoviedb.org/)
-- Demandez une clé API dans les paramètres
-- Ajoutez la clé dans votre fichier `.env`
+## Checklist sécurité avant déploiement
 
-6. **Lancer l'application**
-```bash
-npm start
-# ou
-expo start
-```
+- [ ] `.env` est listé dans `.gitignore` et n’est jamais poussé sur le dépôt distant.
+- [ ] Aucune clé TMDB ni clé anonyme Supabase en dur dans le code source ; uniquement `env.example` sans secrets réels.
+- [ ] Variables sensibles configurées pour EAS Build / CI via les secrets du tableau de bord, pas dans le dépôt.
+- [ ] RLS activé sur toutes les tables utilisateur ; politiques testées (accès refusé pour un autre `user_id`).
+- [ ] Compte de service / clé `service_role` réservée au backend uniquement, jamais dans l’app mobile.
+- [ ] Dépendances à jour (`npm audit`) et builds signés pour les stores.
 
-## 📱 Utilisation
+## Scripts npm
 
-### Démarrage rapide
-1. Ouvrez l'application
-2. Explorez les films sans compte (mode invité)
-3. Créez un compte pour sauvegarder vos préférences
-4. Ajoutez des films à vos listes personnalisées
+| Commande        | Rôle                    |
+|----------------|-------------------------|
+| `npm start`    | Démarrage Expo / Metro  |
+| `npm run ios` / `android` / `web` | Cibles plateforme |
+| `npm run setup`| Assistant `.env`        |
 
-### Navigation
-- **Accueil** : Découvrez les films populaires et tendances
-- **Recherche** : Trouvez des films par titre ou genre
-- **Profil** : Gérez vos listes et paramètres
+## Licence
 
-## 🏗️ Architecture
-
-```
-src/
-├── components/          # Composants réutilisables
-│   └── MovieCard.js    # Carte d'affichage de film
-├── hooks/              # Hooks personnalisés
-│   └── useAuth.js      # Gestion de l'authentification
-├── navigation/         # Configuration de navigation
-│   └── AppNavigator.js # Navigation principale
-├── screens/           # Écrans de l'application
-│   ├── HomeScreen.js
-│   ├── SearchScreen.js
-│   ├── ProfileScreen.js
-│   ├── AuthScreen.js
-│   ├── MovieDetailScreen.js
-│   └── MovieListScreen.js
-├── services/          # Services externes
-│   ├── supabase.js   # Configuration Supabase
-│   └── tmdb.js       # Service API TMDB
-├── types/            # Types et constantes
-│   └── index.js      # Définitions communes
-└── utils/            # Utilitaires
-```
-
-## 🔧 Scripts disponibles
-
-```bash
-# Démarrer en mode développement
-npm start
-
-# Lancer sur iOS
-npm run ios
-
-# Lancer sur Android
-npm run android
-
-# Lancer sur le web
-npm run web
-
-# Build de production
-expo build:android
-expo build:ios
-```
-
-## 🎨 Personnalisation
-
-### Couleurs
-Modifiez les couleurs dans `src/types/index.js` :
-```javascript
-export const Colors = {
-  PRIMARY: '#E50914',      // Rouge principal
-  SECONDARY: '#221F1F',    // Noir secondaire
-  BACKGROUND: '#141414',   // Fond noir
-  // ...
-};
-```
-
-### Composants
-Tous les composants sont modulaires et personnalisables dans le dossier `src/components/`.
-
-## 🚀 Déploiement
-
-### Android
-```bash
-expo build:android
-```
-
-### iOS
-```bash
-expo build:ios
-```
-
-### Web
-```bash
-expo build:web
-```
-
-## 🤝 Contribution
-
-1. Fork le projet
-2. Créez une branche pour votre fonctionnalité
-3. Commitez vos changements
-4. Poussez vers la branche
-5. Ouvrez une Pull Request
-
-## 📄 Licence
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
-
-## 🙏 Remerciements
-
-- [TMDB](https://www.themoviedb.org/) pour l'API des films
-- [Supabase](https://supabase.com/) pour le backend
-- [Expo](https://expo.dev/) pour le framework
-- La communauté React Native
-
-## 📞 Support
-
-Pour toute question ou problème :
-- Ouvrez une issue sur GitHub
-- Contactez-nous à : support@grimovies.com
-
----
-
-**Grimovies** - Découvrez votre prochain film préféré ! 🎬✨ 
+MIT (voir le fichier `LICENSE` s’il est présent).

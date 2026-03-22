@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { useAuth } from '../hooks/useAuth';
 
 const LogoutButton = ({ style, size = 24, showConfirmation = true }) => {

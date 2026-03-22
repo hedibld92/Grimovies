@@ -1,341 +1,117 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '../utils/env';
 
-// Configuration Supabase - NOUVEAU PROJET V2
-const supabaseUrl = 'https://shwaldiuoykaegaqcdfc.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNod2FsZGl1b3lrYWVnYXFjZGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NTY4NTMsImV4cCI6MjA3MjEzMjg1M30.b7g5q09XRCBPl1fG94sTYjoE3Xr2ePHP8OHkb-uDh0Y';
+/*
+ * COUCHE DONNÉES — Client Supabase (connexion à la base et à l’auth distante).
+ * Connexion via process.env.SUPABASE_URL et process.env.SUPABASE_ANON_KEY :
+ * le fichier .env est chargé au démarrage par app.config.js (dotenv) ; côté app, les valeurs
+ * sont lues dans src/utils/env.js (process.env ou expo.extra).
+ *
+ * Schéma SQL à recréer dans Supabase (tables + RLS) :
+ *
+ * -- Table des favoris
+ * CREATE TABLE user_favorites (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   movie_id INTEGER NOT NULL,
+ *   title VARCHAR NOT NULL,
+ *   poster_path VARCHAR,
+ *   overview TEXT,
+ *   release_date VARCHAR,
+ *   vote_average REAL,
+ *   created_at TIMESTAMP DEFAULT NOW(),
+ *   UNIQUE(user_id, movie_id)
+ * );
+ *
+ * -- Table watchlist
+ * CREATE TABLE user_watchlist (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   movie_id INTEGER NOT NULL,
+ *   title VARCHAR NOT NULL,
+ *   poster_path VARCHAR,
+ *   overview TEXT,
+ *   release_date VARCHAR,
+ *   vote_average REAL,
+ *   created_at TIMESTAMP DEFAULT NOW(),
+ *   UNIQUE(user_id, movie_id)
+ * );
+ *
+ * -- Table films vus
+ * CREATE TABLE user_watched (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   movie_id INTEGER NOT NULL,
+ *   title VARCHAR NOT NULL,
+ *   poster_path VARCHAR,
+ *   overview TEXT,
+ *   release_date VARCHAR,
+ *   vote_average REAL,
+ *   rating INTEGER,
+ *   watched_at TIMESTAMP DEFAULT NOW(),
+ *   created_at TIMESTAMP DEFAULT NOW(),
+ *   UNIQUE(user_id, movie_id)
+ * );
+ *
+ * -- Table critiques
+ * CREATE TABLE user_reviews (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   movie_id INTEGER NOT NULL,
+ *   title VARCHAR NOT NULL,
+ *   rating INTEGER NOT NULL,
+ *   review_text TEXT,
+ *   poster_path VARCHAR,
+ *   overview TEXT,
+ *   release_date VARCHAR,
+ *   vote_average REAL,
+ *   created_at TIMESTAMP DEFAULT NOW(),
+ *   updated_at TIMESTAMP DEFAULT NOW()
+ * );
+ *
+ * -- Table listes personnalisées
+ * CREATE TABLE user_lists (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   name VARCHAR NOT NULL,
+ *   description TEXT,
+ *   list_type VARCHAR,
+ *   is_public BOOLEAN DEFAULT false,
+ *   created_at TIMESTAMP DEFAULT NOW(),
+ *   updated_at TIMESTAMP DEFAULT NOW()
+ * );
+ *
+ * -- Table films dans les listes
+ * CREATE TABLE list_movies (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   list_id UUID REFERENCES user_lists(id) ON DELETE CASCADE,
+ *   movie_id INTEGER NOT NULL,
+ *   title VARCHAR NOT NULL,
+ *   poster_path VARCHAR,
+ *   overview TEXT,
+ *   release_date VARCHAR,
+ *   vote_average REAL,
+ *   added_at TIMESTAMP DEFAULT NOW()
+ * );
+ *
+ * -- RLS à activer sur toutes les tables
+ * ALTER TABLE user_favorites ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE user_watchlist ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE user_watched ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE user_reviews ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE user_lists ENABLE ROW LEVEL SECURITY;
+ * ALTER TABLE list_movies ENABLE ROW LEVEL SECURITY;
+ *
+ * -- Politiques RLS (à répéter pour chaque table)
+ * CREATE POLICY "Users can view their own favorites" ON user_favorites FOR ALL USING (auth.uid() = user_id);
+ * CREATE POLICY "Users can view their own watchlist" ON user_watchlist FOR ALL USING (auth.uid() = user_id);
+ * CREATE POLICY "Users can view their own watched" ON user_watched FOR ALL USING (auth.uid() = user_id);
+ * CREATE POLICY "Users can view their own reviews" ON user_reviews FOR ALL USING (auth.uid() = user_id);
+ * CREATE POLICY "Users can view their own lists" ON user_lists FOR ALL USING (auth.uid() = user_id);
+ * CREATE POLICY "Users can view movies in their lists" ON list_movies FOR ALL USING (auth.uid() = (SELECT user_id FROM user_lists WHERE id = list_id));
+ */
+
+const supabaseUrl = getSupabaseUrl();
+const supabaseAnonKey = getSupabaseAnonKey();
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Service d'authentification avec fallback local
-export const authService = {
-  // Inscription simple avec email de confirmation
-  async signUp(email, password) {
-    console.log('🔐 Supabase signUp appelé avec:', { email });
-    
-    try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-      
-      // Vérifier si c'est une erreur réseau
-      if (error && (error.message?.includes('Network request failed') || error.name?.includes('AuthRetryableFetchError'))) {
-        console.warn('⚠️ Erreur réseau Supabase détectée, utilisation du fallback local:', error.message);
-        
-        // Fallback vers l'authentification locale
-        const { localAuthService } = await import('./localAuth');
-        return await localAuthService.signUp(email, password);
-      }
-    
-    console.log('📊 Réponse Supabase signUp:', { data, error });
-    return { data, error };
-    } catch (networkError) {
-      console.warn('⚠️ Exception réseau Supabase, utilisation du fallback local:', networkError.message);
-      
-      // Fallback vers l'authentification locale
-      const { localAuthService } = await import('./localAuth');
-      return await localAuthService.signUp(email, password);
-    }
-  },
-
-  // Connexion
-  async signIn(email, password) {
-    console.log('🔑 Supabase signIn appelé avec:', { email });
-    
-    try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-      
-      // Vérifier si c'est une erreur réseau
-      if (error && (error.message?.includes('Network request failed') || error.name?.includes('AuthRetryableFetchError'))) {
-        console.warn('⚠️ Erreur réseau Supabase détectée, utilisation du fallback local:', error.message);
-        
-        // Fallback vers l'authentification locale
-        const { localAuthService } = await import('./localAuth');
-        return await localAuthService.signIn(email, password);
-      }
-    
-    console.log('📊 Réponse Supabase signIn:', { data, error });
-    return { data, error };
-    } catch (networkError) {
-      console.warn('⚠️ Exception réseau Supabase, utilisation du fallback local:', networkError.message);
-      
-      // Fallback vers l'authentification locale
-      const { localAuthService } = await import('./localAuth');
-      return await localAuthService.signIn(email, password);
-    }
-  },
-
-  // Déconnexion
-  async signOut() {
-    const { error } = await supabase.auth.signOut();
-    return { error };
-  },
-
-  // Obtenir l'utilisateur actuel
-  async getCurrentUser() {
-    try {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-    } catch (networkError) {
-      console.warn('⚠️ Erreur réseau Supabase, utilisation du fallback local:', networkError.message);
-      
-      // Fallback vers l'authentification locale
-      const { localAuthService } = await import('./localAuth');
-      return await localAuthService.getCurrentUser();
-    }
-  },
-
-  // Écouter les changements d'état d'auth
-  onAuthStateChange(callback) {
-    return supabase.auth.onAuthStateChange(callback);
-  }
-};
-
-// Service pour les films/séries
-export const moviesService = {
-  // Récupérer les films populaires
-  async getPopularMovies() {
-    const { data, error } = await supabase
-      .from('movies')
-      .select('*')
-      .eq('is_popular', true)
-      .limit(20);
-    return { data, error };
-  },
-
-  // Récupérer les détails d'un film
-  async getMovieDetails(id) {
-    const { data, error } = await supabase
-      .from('movies')
-      .select('*')
-      .eq('id', id)
-      .single();
-    return { data, error };
-  },
-
-  // Rechercher des films
-  async searchMovies(query) {
-    const { data, error } = await supabase
-      .from('movies')
-      .select('*')
-      .ilike('title', `%${query}%`)
-      .limit(10);
-    return { data, error };
-  }
-};
-
-// Service pour les listes utilisateur
-export const userListsService = {
-  // Créer une liste
-  async createList(userId, name, description) {
-    const { data, error } = await supabase
-      .from('user_lists')
-      .insert([
-        { user_id: userId, name, description }
-      ]);
-    return { data, error };
-  },
-
-  // Récupérer les listes d'un utilisateur
-  async getUserLists(userId) {
-    const { data, error } = await supabase
-      .from('user_lists')
-      .select('*')
-      .eq('user_id', userId);
-    return { data, error };
-  },
-
-  // Ajouter un film à une liste
-  async addMovieToList(listId, movieId) {
-    const { data, error } = await supabase
-      .from('list_movies')
-      .insert([
-        { list_id: listId, movie_id: movieId }
-      ]);
-    return { data, error };
-  },
-
-  // Supprimer un film d'une liste
-  async removeMovieFromList(listId, movieId) {
-    const { data, error } = await supabase
-      .from('list_movies')
-      .delete()
-      .eq('list_id', listId)
-      .eq('movie_id', movieId);
-    return { data, error };
-  },
-
-  // Obtenir les films d'une liste
-  async getListMovies(listId) {
-    const { data, error } = await supabase
-      .from('list_movies')
-      .select('*')
-      .eq('list_id', listId);
-    return { data, error };
-  },
-
-  // Ajouter aux favoris
-  async addToFavorites(userId, movieId, movieData) {
-    const { data, error } = await supabase
-      .from('user_favorites')
-      .insert([
-        { 
-          user_id: userId, 
-          movie_id: movieId,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
-        }
-      ]);
-    return { data, error };
-  },
-
-  // Supprimer des favoris
-  async removeFromFavorites(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_favorites')
-      .delete()
-      .eq('user_id', userId)
-      .eq('movie_id', movieId);
-    return { data, error };
-  },
-
-  // Obtenir les favoris
-  async getFavorites(userId) {
-    const { data, error } = await supabase
-      .from('user_favorites')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  // Ajouter à la watchlist
-  async addToWatchlist(userId, movieId, movieData) {
-    const { data, error } = await supabase
-      .from('user_watchlist')
-      .insert([
-        { 
-          user_id: userId, 
-          movie_id: movieId,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
-        }
-      ]);
-    return { data, error };
-  },
-
-  // Supprimer de la watchlist
-  async removeFromWatchlist(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_watchlist')
-      .delete()
-      .eq('user_id', userId)
-      .eq('movie_id', movieId);
-    return { data, error };
-  },
-
-  // Obtenir la watchlist
-  async getWatchlist(userId) {
-    const { data, error } = await supabase
-      .from('user_watchlist')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  // Marquer comme vu
-  async addToWatched(userId, movieId, movieData) {
-    const { data, error } = await supabase
-      .from('user_watched')
-      .insert([
-        { 
-          user_id: userId, 
-          movie_id: movieId,
-          title: movieData.title,
-          poster_path: movieData.poster_path,
-          overview: movieData.overview,
-          release_date: movieData.release_date,
-          vote_average: movieData.vote_average
-        }
-      ]);
-    return { data, error };
-  },
-
-  // Supprimer des vus
-  async removeFromWatched(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_watched')
-      .delete()
-      .eq('user_id', userId)
-      .eq('movie_id', movieId);
-    return { data, error };
-  },
-
-  // Obtenir les films vus
-  async getWatched(userId) {
-    const { data, error } = await supabase
-      .from('user_watched')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
-  },
-
-  // Vérifier si un film est dans les favoris
-  async isInFavorites(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_favorites')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('movie_id', movieId)
-      .single();
-    return { data: !!data, error };
-  },
-
-  // Vérifier si un film est dans la watchlist
-  async isInWatchlist(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_watchlist')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('movie_id', movieId)
-      .single();
-    return { data: !!data, error };
-  },
-
-  // Vérifier si un film est marqué comme vu
-  async isWatched(userId, movieId) {
-    const { data, error } = await supabase
-      .from('user_watched')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('movie_id', movieId)
-      .single();
-    return { data: !!data, error };
-  },
-
-  // Obtenir les statistiques utilisateur
-  async getUserStats(userId) {
-    const [favorites, watchlist, watched] = await Promise.all([
-      this.getFavorites(userId),
-      this.getWatchlist(userId),
-      this.getWatched(userId)
-    ]);
-
-    return {
-      favorites: favorites.data?.length || 0,
-      watchlist: watchlist.data?.length || 0,
-      watched: watched.data?.length || 0
-    };
-  }
-}; 

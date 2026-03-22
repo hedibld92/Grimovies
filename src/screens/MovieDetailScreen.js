@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { Sizes, formatters } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
@@ -286,7 +286,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
       
       // Marquer automatiquement comme vu si pas déjà fait
       if (!isWatched) {
-        await userListsService.markAsWatched(user.id, movieData);
+        await userListsService.markAsWatched(user.id, movieData, rating);
         setIsWatched(true);
       }
       

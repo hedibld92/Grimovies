@@ -1,23 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator
-} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useColors } from '../hooks/useTheme';
+import { useColors } from '../hooks/useColors';
 import { MovieGenres, SortBy, Sizes } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import TMDBService from '../services/tmdb';
 import MovieCard from '../components/MovieCard';
 import LogoutButton from '../components/LogoutButton';
+import SearchBar from '../components/SearchBar';
 
 const SearchScreen = ({ navigation }) => {
   const { isAuthenticated, signOut } = useAuth();
@@ -214,48 +206,26 @@ const SearchScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      {/* Barre de recherche */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color={Colors.TEXT_SECONDARY} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              activeTab === 'movies' ? 'Rechercher un film...' :
-              activeTab === 'tv' ? 'Rechercher une série...' :
-              'Rechercher films et séries...'
-            }
-            placeholderTextColor={Colors.TEXT_SECONDARY}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() => handleSearch()}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-              }}
-            >
-              <Ionicons name="close-circle" size={20} color={Colors.TEXT_SECONDARY} />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Ionicons 
-            name="options-outline" 
-            size={20} 
-            color={showFilters ? Colors.PRIMARY : Colors.TEXT_SECONDARY} 
-          />
-        </TouchableOpacity>
-        
-        {isAuthenticated && <LogoutButton size={20} />}
-      </View>
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        onSubmit={() => handleSearch()}
+        placeholder={
+          activeTab === 'movies'
+            ? 'Rechercher un film...'
+            : activeTab === 'tv'
+              ? 'Rechercher une série...'
+              : 'Rechercher films et séries...'
+        }
+        Colors={Colors}
+        onClear={() => {
+          setSearchQuery('');
+          setSearchResults([]);
+        }}
+        onToggleFilters={() => setShowFilters(!showFilters)}
+        filterActive={showFilters}
+        rightSlot={isAuthenticated ? <LogoutButton size={20} /> : null}
+      />
 
       {/* Onglets de type de contenu */}
       <View style={styles.tabsContainer}>
@@ -346,35 +316,6 @@ const createStyles = (Colors) => StyleSheet.create({
     backgroundColor: Colors.BACKGROUND,
     paddingTop: Sizes.STATUS_BAR_PADDING,
   },
-  searchContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.CARD_BG,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: Colors.TEXT_PRIMARY,
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  filterButton: {
-    padding: 12,
-    backgroundColor: Colors.CARD_BG,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,

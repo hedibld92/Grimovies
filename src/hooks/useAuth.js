@@ -1,21 +1,18 @@
+// COUCHE PRÉSENTATION — Hook React pour l'état d'authentification
 import { useState, useEffect, createContext, useContext } from 'react';
-import { authService } from '../services/supabase';
+import { AuthService } from '../services/auth';
 
-// Contexte d'authentification
 const AuthContext = createContext({});
 
-// Provider d'authentification
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Vérifier l'utilisateur au démarrage
     checkUser();
 
-    // Écouter les changements d'état d'authentification
-    const { data: { subscription } } = authService.onAuthStateChange(
+    const { data: { subscription } } = AuthService.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
           setUser(session.user);
@@ -33,11 +30,11 @@ export const AuthProvider = ({ children }) => {
 
   const checkUser = async () => {
     try {
-      const user = await authService.getCurrentUser();
-      setUser(user);
-    } catch (error) {
-      console.error('Erreur lors de la vérification de l\'utilisateur:', error);
-      setError(error.message);
+      const current = await AuthService.getCurrentUser();
+      setUser(current);
+    } catch (err) {
+      console.error('Erreur lors de la vérification de l\'utilisateur:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -47,22 +44,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔐 Tentative d\'inscription:', { email });
-      
-      const { data, error } = await authService.signUp(email, password);
-      
-      if (error) {
-        console.error('❌ Erreur Supabase signUp:', error);
-        console.error('❌ Erreur complète signUp:', error);
-        throw error;
+      const { data, error: signUpError } = await AuthService.signUp(email, password);
+      if (signUpError) {
+        throw signUpError;
       }
-      
-      console.log('✅ Inscription réussie:', data);
       return { success: true, data };
-    } catch (error) {
-      console.error('❌ Erreur dans signUp hook:', error);
-      setError(error.message);
-      return { success: false, error: error.message };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -72,21 +61,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔑 Tentative de connexion:', { email });
-      
-      const { data, error } = await authService.signIn(email, password);
-      
-      if (error) {
-        console.error('❌ Erreur Supabase signIn:', error);
-        throw error;
+      const { data, error: signInError } = await AuthService.signIn(email, password);
+      if (signInError) {
+        throw signInError;
       }
-      
-      console.log('✅ Connexion réussie:', data);
       return { success: true, data };
-    } catch (error) {
-      console.error('❌ Erreur dans signIn hook:', error);
-      setError(error.message);
-      return { success: false, error: error.message };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -95,15 +77,13 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await authService.signOut();
-      
-      if (error) throw error;
-      
+      const { error: signOutError } = await AuthService.signOut();
+      if (signOutError) throw signOutError;
       setUser(null);
       return { success: true };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error: error.message };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -116,23 +96,16 @@ export const AuthProvider = ({ children }) => {
     signUp,
     signIn,
     signOut,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook pour utiliser le contexte d'authentification
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
   if (!context) {
     throw new Error('useAuth doit être utilisé dans un AuthProvider');
   }
-  
   return context;
-}; 
+};

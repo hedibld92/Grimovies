@@ -7,7 +7,7 @@ import {
   Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../hooks/useColors';
 
 const ThemeToggle = ({ style }) => {
   const { isDark, theme, toggleTheme } = useTheme();
